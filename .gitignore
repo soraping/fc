@@ -1,2 +1,5 @@
 .idea
 fund-code.txt
+dist
+build
+fundgz.egg-info

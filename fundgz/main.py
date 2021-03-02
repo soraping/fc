@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import os
 import re
 import json
@@ -56,14 +59,8 @@ def print_table(data):
     console.print(fund_table)
 
 
-async def main(codes):
+async def view_table(codes):
     async with aiohttp.ClientSession() as session:
-        # async with aiofiles.open('fund-code.txt', 'r') as fd:
-        #     # async for fund_code in fd:
-        #     #     fund_data = await query_data(session, fund_code.strip())
-        #     #     print(fund_data)
-        #     content = await fd.read()
-        #     fund_codes = re.split('\n', content)
         tasks = [asyncio.create_task(query_data(session, code)) for code in codes]
         data = await asyncio.gather(*tasks)
         print_table(data)
@@ -71,8 +68,8 @@ async def main(codes):
 
 @click.group()
 def fc():
-    # asyncio.run(main())
-    print('hello')
+    # print('hello')
+    pass
 
 
 def extract_fund_code(fund):
@@ -91,9 +88,9 @@ def run():
         with open(FILE_TEMP_PATH, 'r') as f:
             files_str = f.read().strip()
             codes = [extract_fund_code(fund) for fund in re.split('\n', files_str)]
-            asyncio.run(main(codes))
+            asyncio.run(view_table(codes))
     except FileNotFoundError as e:
-        err_msg = f"请先执行 [bold red]fc add[/bold red] 命令添加文档"
+        err_msg = f"请先执行 [bold red]fundgz add[/bold red] 命令添加文档"
         console.print(err_msg)
 
 
@@ -112,28 +109,36 @@ def add():
 
 @click.command()
 def delete():
-    # 读取文件
-    with open(FILE_TEMP_PATH, 'r') as f:
-        files = f.read()
-        codes = re.split('\n', files)
-        del_list = [
-            inquirer.List('del',
-                          message="请选择要删除的 fund：",
-                          choices=codes)
-        ]
-        del_answers = inquirer.prompt(del_list)
-        del_code = del_answers.get('del', '')
-
-    # 删除并重新写入文件
-    print('删除的 code', del_code)
-    codes.remove(del_code)
-    with open(FILE_TEMP_PATH, 'w') as f:
-        f.write("\n".join(codes))
+    try:
+        # 读取文件
+        with open(FILE_TEMP_PATH, 'r') as f:
+            files = f.read()
+            codes = re.split('\n', files)
+            del_list = [
+                inquirer.List('del',
+                              message="请选择要删除的 fund：",
+                              choices=codes)
+            ]
+            del_answers = inquirer.prompt(del_list)
+            del_code = del_answers.get('del', '')
+            # 删除并重新写入文件
+            print('删除的 code', del_code)
+            codes.remove(del_code)
+            with open(FILE_TEMP_PATH, 'w') as f:
+                f.write("\n".join(codes))
+    except FileNotFoundError as e:
+        err_msg = f"请先执行 [bold red]fundgz add[/bold red] 命令添加文档"
+        console.print(err_msg)
 
 
 fc.add_command(add)
 fc.add_command(delete)
 fc.add_command(run)
 
-if __name__ == '__main__':
+
+def main():
     fc()
+
+
+if __name__ == '__main__':
+    main()

@@ -8,20 +8,19 @@
 """
 from setuptools import setup, find_packages
 
-VERSION = '0.0.1'
+VERSION = '0.1.6'
 
 setup(
-    name='fc',
+    name='fundgz',
     version=VERSION,
     description='fund search',
     long_description='fund search',
-    classifiers=[],
     keywords='fund asynico click rich inquirer',
     author='caoshiping',
     author_email='soraping@163.com',
     url='https://github.com/soraping/fc',
     license='MIT',
-    packages=find_packages(),
+    packages=find_packages(exclude=["*.txt"]),
     include_package_data=True,
     zip_safe=True,
     install_requires=[
@@ -29,5 +28,11 @@ setup(
         'inquirer',
         'click',
         'rich'
-    ]
+    ],
+    python_requires='>=3.7',
+    entry_points={
+        'console_scripts': [
+            'fundgz = fundgz.main:main'
+        ]
+    }
 )
