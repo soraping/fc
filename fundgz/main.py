@@ -68,7 +68,6 @@ async def view_table(codes):
 
 @click.group()
 def fc():
-    # print('hello')
     pass
 
 
@@ -82,7 +81,7 @@ def extract_fund_code(fund):
     return re.match('.*?\|(.*)$', fund, re.S).group(1)
 
 
-@click.command()
+@fc.command()
 def run():
     try:
         with open(FILE_TEMP_PATH, 'r') as f:
@@ -94,7 +93,7 @@ def run():
         console.print(err_msg)
 
 
-@click.command()
+@fc.command()
 def add():
     console.print('正在添加 fund 文档，[bold red]ctrl+d[/bold red] 退出')
     while True:
@@ -107,7 +106,7 @@ def add():
             f.write(f'{fund_name_alias_name}|{fund_code}\n')
 
 
-@click.command()
+@fc.command()
 def delete():
     try:
         # 读取文件
@@ -129,11 +128,6 @@ def delete():
     except FileNotFoundError as e:
         err_msg = f"请先执行 [bold red]fundgz add[/bold red] 命令添加文档"
         console.print(err_msg)
-
-
-fc.add_command(add)
-fc.add_command(delete)
-fc.add_command(run)
 
 
 def main():
