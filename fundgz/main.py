@@ -21,21 +21,25 @@ BASE_DIR = os.getcwd()
 FILE_TEMP_PATH = f'{BASE_DIR}/fund-code.txt'
 
 
-async def query_data(session, fund_code):
+async def query_data(session, fund_code, semaphore):
     """
     :param fund_code:
     :return:
     """
-    url = BASE_URL.format(fund_code)
-    async with session.get(url=url) as response:
-        bytes_data = await response.read()
-        # 查看编码类型
-        ret = chardet.detect(bytes_data)
-        # bytes 转换成 str
-        jsonp_data = str(bytes_data, ret['encoding'])
-        # 判断是否有数据
-        data = re.match('.*?({.*}).*', jsonp_data, re.S).group(1)
-        return json.loads(data)
+    async with semaphore:
+        url = BASE_URL.format(fund_code)
+        async with session.get(url=url) as response:
+            if response.status == 200:
+                bytes_data = await response.read()
+                # 查看编码类型
+                ret = chardet.detect(bytes_data)
+                # bytes 转换成 str
+                jsonp_data = str(bytes_data, ret['encoding'])
+                # 判断是否有数据
+                data = re.match('.*?({.*}).*', jsonp_data, re.S).group(1)
+                return json.loads(data)
+            else:
+                return None
 
 
 def print_table(data):
@@ -60,9 +64,12 @@ def print_table(data):
 
 
 async def view_table(codes):
+    # 设置最大并发数
+    sem = asyncio.Semaphore(10)
     async with aiohttp.ClientSession() as session:
-        tasks = [asyncio.create_task(query_data(session, code)) for code in codes]
+        tasks = [asyncio.create_task(query_data(session, code, sem)) for code in codes]
         data = await asyncio.gather(*tasks)
+        data = filter(lambda fund: fund, data)
         print_table(data)
 
 
@@ -95,15 +102,23 @@ def run():
 
 @fc.command()
 def add():
-    console.print('正在添加 fund 文档，[bold red]ctrl+d[/bold red] 退出')
+    console.print('正在添加 fund 文档，[bold red]ctrl+c[/bold red] 退出')
     while True:
+        # 读取临时文件
+        with open(FILE_TEMP_PATH, 'r') as f:
+            fund_lines = f.readlines()
         # 提示添加 fund code
         fund_code = click.prompt(text=click.style('请输入fund 编号', fg='yellow'), type=str)
-        fund_name_alias_name = click.prompt(text=click.style('请输入fund 名称', fg='yellow'), type=str)
-        console.print(f'名称：[bold blue]{fund_name_alias_name}[/bold blue]，编号：[bold red]{fund_code}[/bold red]')
-        # 写入文件
-        with open(FILE_TEMP_PATH, 'a') as f:
-            f.write(f'{fund_name_alias_name}|{fund_code}\n')
+        # 判断是否已经存在
+        exist_fund = filter(lambda fund: fund_code in fund, fund_lines)
+        if exist_fund is None:
+            fund_name_alias_name = click.prompt(text=click.style('请输入fund 名称', fg='yellow'), type=str)
+            console.print(f'名称：[bold blue]{fund_name_alias_name}[/bold blue]，编号：[bold red]{fund_code}[/bold red]')
+            # 写入文件
+            with open(FILE_TEMP_PATH, 'a') as f:
+                f.write(f'{fund_name_alias_name}|{fund_code}\n')
+        else:
+            console.print(f'编号：[bold red]{fund_code}[/bold red] 已经存在，请重新输入编号')
 
 
 @fc.command()
@@ -112,13 +127,15 @@ def delete():
         # 读取文件
         with open(FILE_TEMP_PATH, 'r') as f:
             files = f.read()
-            codes = re.split('\n', files)
+            codes = re.split('\n', files.strip())
             del_list = [
                 inquirer.List('del',
                               message="请选择要删除的 fund：",
                               choices=codes)
             ]
             del_answers = inquirer.prompt(del_list)
+            if del_answers is None:
+                return console.print("退出删除！", style='bold red')
             del_code = del_answers.get('del', '')
             # 删除并重新写入文件
             print('删除的 code', del_code)
