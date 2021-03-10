@@ -17,8 +17,8 @@ console = Console()
 BASE_URL = "http://fundgz.1234567.com.cn/js/{}.js"
 
 # 临时文件路径
-BASE_DIR = os.getcwd()
-FILE_TEMP_PATH = f'{BASE_DIR}/fund-code.txt'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FILE_TEMP_PATH = os.path.join(BASE_DIR, 'fund-code.txt')
 
 
 async def query_data(session, fund_code, semaphore):
@@ -104,21 +104,36 @@ def run():
 def add():
     console.print('正在添加 fund 文档，[bold red]ctrl+c[/bold red] 退出')
     while True:
-        # 读取临时文件
-        with open(FILE_TEMP_PATH, 'r') as f:
-            fund_lines = f.readlines()
+        # 文件是否存在
+        fund_lines = []
+        if os.path.exists(FILE_TEMP_PATH):
+            # 读取临时文件
+            with open(FILE_TEMP_PATH, 'r') as f:
+                fund_lines = f.readlines()
         # 提示添加 fund code
         fund_code = click.prompt(text=click.style('请输入fund 编号', fg='yellow'), type=str)
         # 判断是否已经存在
-        exist_fund = filter(lambda fund: fund_code in fund, fund_lines)
-        if exist_fund is None:
+        exist_fund = list(filter(lambda fund: fund_code in fund, fund_lines))
+        if len(exist_fund):
+            console.print(f'编号：[bold red]{fund_code}[/bold red] 已经存在，请重新输入编号')
+        else:
             fund_name_alias_name = click.prompt(text=click.style('请输入fund 名称', fg='yellow'), type=str)
             console.print(f'名称：[bold blue]{fund_name_alias_name}[/bold blue]，编号：[bold red]{fund_code}[/bold red]')
             # 写入文件
             with open(FILE_TEMP_PATH, 'a') as f:
                 f.write(f'{fund_name_alias_name}|{fund_code}\n')
-        else:
-            console.print(f'编号：[bold red]{fund_code}[/bold red] 已经存在，请重新输入编号')
+
+
+@fc.command()
+def ls():
+    try:
+        # 读取文件
+        with open(FILE_TEMP_PATH, 'r') as f:
+            files = f.read()
+            console.print(files)
+    except FileNotFoundError as e:
+        err_msg = f"请先执行 [bold red]fundgz add[/bold red] 命令添加文档"
+        console.print(err_msg)
 
 
 @fc.command()
